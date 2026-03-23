@@ -1,0 +1,176 @@
+#!/usr/bin/env python3
+"""
+feishu-hooks/hook.py — Claude Code hook handler
+Reads hook event JSON from stdin, sends Feishu card notification.
+
+Registered for: Stop, Notification, StopFailure, PreToolUse (Bash)
+Config: ~/.claude/feishu.json
+"""
+
+import json
+import os
+import sys
+import urllib.request
+from datetime import datetime
+
+CONFIG_PATH = os.path.expanduser("~/.claude/feishu.json")
+BASE_URL = "https://open.feishu.cn/open-apis"
+
+EVENT_COLORS = {
+    "task_complete": "green",
+    "needs_confirm": "orange",
+    "error":         "red",
+    "info":          "grey",
+}
+
+EVENT_ICONS = {
+    "task_complete": "✅",
+    "needs_confirm": "⚠️",
+    "error":         "❌",
+    "info":          "ℹ️",
+}
+
+DANGEROUS_PATTERNS = [
+    "rm -rf",
+    "git push -f",
+    "git push --force",
+    "git reset --hard",
+    "drop table",
+    "delete from",
+    "truncate table",
+]
+
+
+def load_config():
+    if not os.path.exists(CONFIG_PATH):
+        print(f"feishu-hooks: config not found: {CONFIG_PATH}", file=sys.stderr)
+        sys.exit(1)
+    with open(CONFIG_PATH) as f:
+        return json.load(f)
+
+
+def http_request(url, payload, method, headers=None):
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(url, data=data, method=method)
+    req.add_header("Content-Type", "application/json; charset=utf-8")
+    if headers:
+        for k, v in headers.items():
+            req.add_header(k, v)
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return json.loads(resp.read())
+    except Exception as e:
+        print(f"feishu-hooks: request failed: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def get_token(app_id, app_secret):
+    url = f"{BASE_URL}/auth/v3/tenant_access_token/internal"
+    resp = http_request(url, {"app_id": app_id, "app_secret": app_secret}, "POST")
+    if resp.get("code") != 0:
+        print(f"feishu-hooks: failed to get token: {resp}", file=sys.stderr)
+        sys.exit(1)
+    return resp["tenant_access_token"]
+
+
+def build_card(event, title, body):
+    color = EVENT_COLORS.get(event, "grey")
+    icon = EVENT_ICONS.get(event, "")
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    return {
+        "config": {"wide_screen_mode": True},
+        "header": {
+            "title": {"tag": "plain_text", "content": f"{icon} {title}"},
+            "template": color,
+        },
+        "elements": [
+            {"tag": "div", "text": {"tag": "lark_md", "content": body}},
+            {"tag": "hr"},
+            {
+                "tag": "note",
+                "elements": [{"tag": "plain_text", "content": f"Claude Code  ·  {timestamp}"}],
+            },
+        ],
+    }
+
+
+def send_feishu(event, title, body):
+    config = load_config()
+    token = get_token(config["app_id"], config["app_secret"])
+    card = build_card(event, title, body)
+    user_id_type = config.get("user_id_type", "user_id")
+    url = f"{BASE_URL}/im/v1/messages?receive_id_type={user_id_type}"
+    payload = {
+        "receive_id": config["user_id"],
+        "msg_type": "interactive",
+        "content": json.dumps(card),
+    }
+    resp = http_request(url, payload, "POST", {"Authorization": f"Bearer {token}"})
+    if resp.get("code") != 0:
+        print(f"feishu-hooks: failed to send message: {resp}", file=sys.stderr)
+        sys.exit(1)
+
+
+def truncate(text, max_len=500):
+    if len(text) <= max_len:
+        return text
+    return text[:max_len] + "…"
+
+
+def main():
+    try:
+        event = json.load(sys.stdin)
+    except Exception as e:
+        print(f"feishu-hooks: failed to parse stdin JSON: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    hook_name = event.get("hook_event_name", "")
+    cwd = event.get("cwd", "")
+
+    if hook_name == "Stop":
+        if event.get("stop_hook_active"):
+            sys.exit(0)
+        last_msg = truncate(event.get("last_assistant_message", "（无消息）"))
+        title = "任务完成"
+        body = last_msg
+        if cwd:
+            body += f"\n\n`{cwd}`"
+        send_feishu("task_complete", title, body)
+
+    elif hook_name == "Notification":
+        notif_type = event.get("notification_type", "")
+        message = event.get("message", "")
+        title = event.get("title", "通知")
+
+        if notif_type == "permission_prompt":
+            send_feishu("needs_confirm", title or "需要权限确认", truncate(message))
+        elif notif_type == "idle_prompt":
+            send_feishu("info", "等待输入", truncate(message))
+        # auth_success and elicitation_dialog are not actionable — skip
+
+    elif hook_name == "StopFailure":
+        error_type = event.get("error", "unknown")
+        error_details = event.get("error_details", "")
+        last_msg = truncate(event.get("last_assistant_message", ""), 200)
+        body = f"错误类型：`{error_type}`"
+        if error_details:
+            body += f"\n\n```\n{error_details}\n```"
+        if last_msg:
+            body += f"\n\n最后消息：{last_msg}"
+        send_feishu("error", "Claude 运行出错", body)
+
+    elif hook_name == "PreToolUse" and event.get("tool_name") == "Bash":
+        cmd = event.get("tool_input", {}).get("command", "")
+        cmd_lower = cmd.lower()
+        matched = next((p for p in DANGEROUS_PATTERNS if p in cmd_lower), None)
+        if matched:
+            desc = event.get("tool_input", {}).get("description", "")
+            body = f"检测到危险操作，即将执行：\n\n```\n{truncate(cmd, 300)}\n```"
+            if desc:
+                body += f"\n\n描述：{desc}"
+            send_feishu("needs_confirm", "危险操作提醒", body)
+
+
+if __name__ == "__main__":
+    main()
