@@ -15,39 +15,18 @@ Claude Code 飞书通知 hooks。基于 Claude Code 的 [hooks 机制](https://d
 
 检测的危险命令模式：`rm -rf`、`git push -f`、`git push --force`、`git reset --hard`、`DROP TABLE`、`DELETE FROM`、`truncate table`
 
-## 前置条件
-
-需要 `~/.claude/feishu.json` 配置文件。
-
-安装后可直接在 Claude Code 中运行 `/feishu-hooks-init` 命令，由 Claude 引导填写，无需手动编辑文件。
-
-也可以手动创建：
-
-```json
-{
-  "app_id": "cli_xxx",
-  "app_secret": "your_secret",
-  "user_id": "your_user_id",
-  "user_id_type": "user_id"
-}
-```
-
-**获取步骤：**
-
-1. 前往[飞书开放平台](https://open.feishu.cn/app)，创建一个自建应用
-2. 在「凭证与基础信息」里获取 `app_id` 和 `app_secret`
-3. 在「权限管理」里开通 `im:message:send_as_bot`（发送消息）权限，并发版
-4. 你的 `user_id` 可在飞书 App → 个人资料 → 复制用户 ID 获取
-
-字段说明：
-- `app_id` / `app_secret`：飞书自建应用的 App ID 和 Secret
-- `user_id`：接收通知的用户 ID
-- `user_id_type`：ID 类型，通常为 `user_id`（也支持 `open_id`、`union_id`）
-
 ## 安装
 
+**1. Clone 仓库到任意目录**
+
 ```bash
-bash install.sh
+git clone https://github.com/Cygra/claude-code-feishu-hooks.git ~/claude-code-feishu-hooks
+```
+
+**2. 运行安装脚本**
+
+```bash
+bash ~/claude-code-feishu-hooks/install.sh
 ```
 
 install.sh 会自动检测脚本所在路径，将 `hook.py` 的**绝对路径**写入 `~/.claude/settings.json`。
@@ -72,7 +51,19 @@ install.sh 会自动检测脚本所在路径，将 `hook.py` 的**绝对路径**
 
 安装是**幂等**的，重复执行不会产生重复条目。不会影响其他已有的 hooks。
 
-install.sh 同时会将 `/feishu-hooks-init` 命令安装到 `~/.claude/commands/`，安装后在任意 Claude Code 会话中输入该命令，Claude 会引导你填写飞书应用凭证并写入配置文件，无需手动编辑 JSON。
+install.sh 同时会将 `/feishu-hooks-init` 命令安装到 `~/.claude/commands/`。
+
+**3. 生成 feishu.json 配置文件**
+
+打开任意 Claude Code 会话，运行：
+
+```
+/feishu-hooks-init
+```
+
+Claude 会引导你填写飞书应用凭证，自动生成 `~/.claude/feishu.json`，无需手动编辑 JSON。
+
+> 也可以手动创建 `~/.claude/feishu.json`，格式见[下方说明](#feishujson-格式)。
 
 ## 卸载
 
@@ -81,6 +72,29 @@ bash uninstall.sh
 ```
 
 仅移除 claude-code-feishu-hooks 注册的条目，其他 hooks 保持不变。
+
+## feishu.json 格式
+
+```json
+{
+  "app_id": "cli_xxx",
+  "app_secret": "your_secret",
+  "user_id": "your_user_id",
+  "user_id_type": "user_id"
+}
+```
+
+字段说明：
+- `app_id` / `app_secret`：飞书自建应用的 App ID 和 Secret
+- `user_id`：接收通知的用户 ID
+- `user_id_type`：ID 类型，通常为 `user_id`（也支持 `open_id`、`union_id`）
+
+**获取步骤：**
+
+1. 前往[飞书开放平台](https://open.feishu.cn/app)，创建一个自建应用
+2. 在「凭证与基础信息」里获取 `app_id` 和 `app_secret`
+3. 在「权限管理」里开通 `im:message:send_as_bot`（发送消息）权限，并发版
+4. 你的 `user_id` 可在飞书 App → 个人资料 → 复制用户 ID 获取
 
 ## 手动配置
 
