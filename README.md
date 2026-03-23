@@ -17,7 +17,9 @@ Claude Code 飞书通知 hooks。基于 Claude Code 的 [hooks 机制](https://d
 
 ## 前置条件
 
-需要 `~/.claude/feishu.json` 配置文件（与 feishu-notify skill 格式相同）。安装后可直接在 Claude Code 中运行 `/feishu-hooks-init` 命令，由 Claude 引导填写，无需手动编辑文件。
+需要 `~/.claude/feishu.json` 配置文件。
+
+安装后可直接在 Claude Code 中运行 `/feishu-hooks-init` 命令，由 Claude 引导填写，无需手动编辑文件。
 
 也可以手动创建：
 
