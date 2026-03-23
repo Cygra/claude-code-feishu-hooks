@@ -68,7 +68,7 @@ Claude 会引导你填写飞书应用凭证，自动生成 `~/.claude/feishu.jso
 ## 卸载
 
 ```bash
-bash uninstall.sh
+bash ~/claude-code-feishu-hooks/uninstall.sh
 ```
 
 仅移除 claude-code-feishu-hooks 注册的条目，其他 hooks 保持不变。
