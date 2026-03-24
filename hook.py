@@ -206,17 +206,6 @@ def main():
             send_feishu("info", "等待输入", message)
         # auth_success and elicitation_dialog are not actionable — skip
 
-    elif hook_name == "StopFailure":
-        error_type = event.get("error", "unknown")
-        error_details = event.get("error_details", "")
-        last_msg = event.get("last_assistant_message", "")
-        body = f"错误类型：`{error_type}`"
-        if error_details:
-            body += f"\n\n```\n{error_details}\n```"
-        if last_msg:
-            body += f"\n\n最后消息：{last_msg}"
-        send_feishu("error", "Claude 运行出错", body)
-
     elif hook_name == "PreToolUse" and event.get("tool_name") == "Bash":
         cmd = event.get("tool_input", {}).get("command", "")
         cmd_lower = cmd.lower()
