@@ -73,11 +73,13 @@ def get_token(app_id, app_secret):
     return resp["tenant_access_token"]
 
 
-def build_card(event, title, body):
+def build_card(event, title, body, cwd=""):
     color = EVENT_COLORS.get(event, "grey")
     icon = EVENT_ICONS.get(event, "")
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    content = f"{body}\n\n---\nClaude Code · {timestamp}"
+    home = os.path.expanduser("~")
+    cwd_part = f"  ·  {cwd.replace(home, '~')}" if cwd else ""
+    content = f"{body}\n\n---\n<font color='grey'>Claude Code  ·  {timestamp}{cwd_part}</font>"
 
     return {
         "schema": "2.0",
@@ -106,10 +108,10 @@ def build_card(event, title, body):
     }
 
 
-def send_feishu(event, title, body):
+def send_feishu(event, title, body, cwd=""):
     config = load_config()
     token = get_token(config["app_id"], config["app_secret"])
-    card = build_card(event, title, body)
+    card = build_card(event, title, body, cwd)
     user_id_type = config.get("user_id_type", "user_id")
     url = f"{BASE_URL}/im/v1/messages?receive_id_type={user_id_type}"
     payload = {
@@ -143,11 +145,7 @@ def main():
         if event.get("stop_hook_active"):
             sys.exit(0)
         last_msg = truncate(event.get("last_assistant_message", "（无消息）"))
-        title = "任务完成"
-        body = last_msg
-        if cwd:
-            body += f"\n\n`{cwd}`"
-        send_feishu("task_complete", title, body)
+        send_feishu("task_complete", "任务完成", last_msg, cwd)
 
     elif hook_name == "Notification":
         notif_type = event.get("notification_type", "")
