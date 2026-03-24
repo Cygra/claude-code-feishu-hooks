@@ -9,6 +9,7 @@ Claude Code 飞书通知 hooks。基于 Claude Code 的 [hooks 机制](https://d
 | 触发时机 | 卡片颜色 | 说明 |
 |---|---|---|
 | Claude 完成回答（`Stop`） | 🟢 绿色 | 任务完成，附带最后一条消息摘要 |
+| Plan 待审批（`Notification` permission_prompt） | 🟠 橙色 | ExitPlanMode 触发，卡片内附带完整 plan 内容 |
 | 需要权限确认（`Notification` permission_prompt） | 🟠 橙色 | Claude 等待用户在终端确认操作 |
 | Claude 等待输入（`Notification` idle_prompt） | ⚪ 灰色 | Claude 已就绪，等待下一条指令 |
 | 执行危险命令前（`PreToolUse` Bash） | 🟠 橙色 | 检测到 `rm -rf`、force push 等危险操作 |
