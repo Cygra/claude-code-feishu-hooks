@@ -77,21 +77,32 @@ def build_card(event, title, body):
     color = EVENT_COLORS.get(event, "grey")
     icon = EVENT_ICONS.get(event, "")
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    content = f"{body}\n\n---\nClaude Code · {timestamp}"
 
     return {
-        "config": {"wide_screen_mode": True},
+        "schema": "2.0",
+        "config": {
+            "update_multi": True,
+        },
         "header": {
             "title": {"tag": "plain_text", "content": f"{icon} {title}"},
+            "subtitle": {"tag": "plain_text", "content": ""},
             "template": color,
+            "padding": "12px 12px 12px 12px",
         },
-        "elements": [
-            {"tag": "div", "text": {"tag": "lark_md", "content": body}},
-            {"tag": "hr"},
-            {
-                "tag": "note",
-                "elements": [{"tag": "plain_text", "content": f"Claude Code  ·  {timestamp}"}],
-            },
-        ],
+        "body": {
+            "direction": "vertical",
+            "padding": "12px 12px 12px 12px",
+            "elements": [
+                {
+                    "tag": "markdown",
+                    "content": content,
+                    "text_align": "left",
+                    "text_size": "normal_v2",
+                    "margin": "0px 0px 0px 0px",
+                },
+            ],
+        },
     }
 
 
